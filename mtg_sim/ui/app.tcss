@@ -1,0 +1,372 @@
+Screen {
+    background: #111111;
+    layout: vertical;
+}
+
+#title-bar {
+    height: 1;
+    background: #0a0a0a;
+    color: #555555;
+    padding: 0 2;
+}
+
+#title-bar .title-name {
+    color: #888888;
+}
+
+#title-bar .title-deck {
+    color: #4a9eff;
+}
+
+#main-grid {
+    grid-size: 2 2;
+    grid-rows: 1fr 1fr;
+    grid-columns: 1fr 1fr;
+    height: 1fr;
+}
+
+#status-bar {
+    height: 1;
+    background: #0a0a0a;
+    border-top: tall #1e1e1e;
+    padding: 0 1;
+}
+
+.pane {
+    border: tall #1e1e1e;
+    background: #111111;
+    padding: 0;
+}
+
+.pane:focus-within {
+    border: tall #1a3a5c;
+}
+
+.pane-title {
+    background: #191919;
+    color: #555555;
+    height: 1;
+    padding: 0 2;
+    border-bottom: tall #1e1e1e;
+    text-style: none;
+}
+
+.pane:focus-within .pane-title {
+    color: #4a9eff;
+    background: #111d2b;
+    border-bottom: tall #1a3a5c;
+}
+
+.pane-title .pane-meta {
+    color: #333333;
+}
+
+.pane:focus-within .pane-meta {
+    color: #2a5a8c;
+}
+
+.pane-scroll {
+    height: 1fr;
+    padding: 1 2;
+    background: transparent;
+}
+
+.lib-row {
+    layout: horizontal;
+    height: 1;
+}
+
+.lib-name {
+    color: #aaaaaa;
+    width: 1fr;
+}
+
+.lib-count {
+    color: #444444;
+    width: 6;
+    text-align: right;
+}
+
+.lib-count.changed {
+    color: #4a9eff;
+}
+
+.lib-total {
+    color: #555555;
+    height: 1;
+    margin-top: 1;
+    padding-top: 1;
+    border-top: tall #1e1e1e;
+    layout: horizontal;
+}
+
+.lib-total .total-label {
+    color: #444444;
+    width: 1fr;
+}
+
+.lib-total .total-count {
+    color: #c9a227;
+    width: 10;
+    text-align: right;
+}
+
+.hand-card {
+    color: #9d7dea;
+    height: 1;
+}
+
+.hand-empty {
+    color: #333333;
+    height: 1;
+}
+
+.cond-item {
+    height: auto;
+    layout: horizontal;
+    padding: 0 0 1 0;
+}
+
+.cond-id {
+    color: #2ecc71;
+    width: 6;
+}
+
+.cond-body {
+    color: #cccccc;
+    width: 1fr;
+}
+
+.cond-rule {
+    color: #444444;
+    width: 16;
+    text-align: right;
+}
+
+.cond-selected .cond-id {
+    color: #55ff8a;
+    text-style: bold;
+}
+
+.cond-selected .cond-body {
+    color: #ffffff;
+    text-style: bold;
+}
+
+.cond-selected .cond-rule {
+    color: #666666;
+}
+
+.cond-empty {
+    color: #333333;
+    height: 1;
+}
+
+.sim-item {
+    height: auto;
+    padding: 0 0 1 0;
+}
+
+.sim-header-row {
+    layout: horizontal;
+    height: 1;
+}
+
+.sim-id {
+    color: #e67e22;
+    width: 6;
+}
+
+.sim-name {
+    color: #cccccc;
+    width: 1fr;
+}
+
+.sim-badge {
+    width: 5;
+    text-align: center;
+}
+
+.sim-badge.any {
+    color: #e91e8c;
+}
+
+.sim-badge.all {
+    color: #4a9eff;
+}
+
+.sim-status {
+    width: 10;
+    text-align: right;
+}
+
+.sim-status.ready {
+    color: #444444;
+}
+
+.sim-status.running {
+    color: #c9a227;
+}
+
+.sim-status.complete {
+    color: #2ecc71;
+}
+
+.sim-meta-row {
+    layout: horizontal;
+    height: 1;
+    padding-left: 6;
+}
+
+.sim-meta-text {
+    color: #444444;
+    width: 1fr;
+}
+
+.sim-rate {
+    color: #2ecc71;
+    width: 8;
+    text-align: right;
+}
+
+.sim-rate.pending {
+    color: #333333;
+}
+
+.sim-uses-row {
+    height: 1;
+    padding-left: 6;
+    color: #333333;
+}
+
+.sim-uses-row .uses-ref {
+    color: #2ecc71;
+}
+
+.sim-divider {
+    height: 1;
+    color: #1e1e1e;
+}
+
+.sim-selected .sim-id {
+    color: #ffaa44;
+    text-style: bold;
+}
+
+.sim-selected .sim-name {
+    color: #ffffff;
+    text-style: bold;
+}
+
+.sim-empty {
+    color: #333333;
+    height: 1;
+}
+
+.key-hint {
+    color: #555555;
+    margin-right: 2;
+}
+
+.key-hint .key {
+    color: #888888;
+    background: #1e1e1e;
+    padding: 0 1;
+}
+
+.key-hint .key-desc {
+    color: #444444;
+}
+
+ConditionModal {
+    align: center middle;
+}
+
+SimulationModal {
+    align: center middle;
+}
+
+.modal-container {
+    background: #161616;
+    border: tall #2a4a6c;
+    width: 60;
+    height: auto;
+    padding: 1 2;
+}
+
+.modal-title {
+    color: #4a9eff;
+    text-style: bold;
+    height: 1;
+    margin-bottom: 1;
+    border-bottom: tall #1a3a5c;
+    padding-bottom: 1;
+}
+
+.modal-label {
+    color: #666666;
+    height: 1;
+    margin-top: 1;
+}
+
+.modal-input {
+    margin-top: 0;
+}
+
+.modal-select {
+    margin-top: 0;
+}
+
+.modal-buttons {
+    layout: horizontal;
+    height: 3;
+    margin-top: 1;
+    align: right middle;
+}
+
+.modal-buttons Button {
+    margin-left: 1;
+    min-width: 10;
+}
+
+Input {
+    background: #0e0e0e;
+    border: tall #2a2a2a;
+    color: #cccccc;
+}
+
+Input:focus {
+    border: tall #2a5a8c;
+}
+
+Select {
+    background: #0e0e0e;
+    border: tall #2a2a2a;
+    color: #cccccc;
+}
+
+Select:focus {
+    border: tall #2a5a8c;
+}
+
+Button {
+    background: #1a1a1a;
+    border: tall #2a2a2a;
+    color: #888888;
+}
+
+Button:hover {
+    background: #222222;
+    color: #aaaaaa;
+}
+
+Button.-primary {
+    background: #0d2a45;
+    border: tall #1a4a7a;
+    color: #4a9eff;
+}
+
+Button.-primary:hover {
+    background: #1a3a5c;
+    color: #6ab4ff;
+}

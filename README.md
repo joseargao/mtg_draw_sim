@@ -2,7 +2,7 @@
 
 A terminal-based deck draw simulator for Magic: The Gathering. Import any MTG Arena decklist, define draw conditions, run thousands of randomized simulations, and get statistical results on how consistently your deck hits its key draws.
 
-> **Status: Work in progress.** The simulation engine (Stage 1) is complete and tested. The terminal UI is under active development.
+> **Status: Work in progress.** The simulation engine (Stage 1) and TUI scaffold (Stage 2) are complete. Interactive mode, full CRUD, and batch simulation progress are under active development.
 
 ---
 
@@ -22,6 +22,7 @@ You group conditions into **simulations** with AND/OR logic, run them tens of th
 ## Features
 
 - Import decklists directly from MTG Arena export format
+- Terminal UI with 4 panes: library, hand, conditions, simulations
 - Define reusable draw conditions (card, comparator, count, turn deadline)
 - Group conditions into named simulations with ANY (OR) / ALL (AND) success logic
 - Run thousands of randomized independent games per simulation
@@ -36,9 +37,10 @@ You group conditions into **simulations** with AND/OR logic, run them tens of th
 
 ```
 mtg_draw_sim/
-├── main.py                  # Entrypoint (TUI, coming in Stage 2)
+├── main.py                  # Entrypoint
 ├── build.sh                 # Linux/macOS build script
 ├── build.ps1                # Windows build script
+├── requirements.txt         # Python dependencies
 ├── config.ini               # Optional configuration file
 └── mtg_sim/
     ├── engine/
@@ -47,7 +49,11 @@ mtg_draw_sim/
     │   ├── simulation.py    # Condition, Simulation, SimulationRunner
     │   ├── config.py        # INI config model
     │   └── app_state.py     # Top-level application state
-    ├── ui/                  # TUI (Textual) — coming in Stage 2
+    ├── ui/
+    │   ├── app.py           # Main Textual application
+    │   ├── app.tcss         # TUI stylesheet
+    │   ├── widgets.py       # Pane widgets (library, hand, conditions, sims)
+    │   └── modals.py        # Add/edit dialogs
     └── tests/
         └── test_engine.py   # 43 engine tests
 ```
@@ -57,22 +63,49 @@ mtg_draw_sim/
 ## Requirements
 
 - Python 3.10+
-- No runtime dependencies yet (standard library only for the engine)
-- [Textual](https://github.com/Textualize/textual) will be added in Stage 2 for the TUI
+- [Textual](https://github.com/Textualize/textual) — terminal UI framework
 
 ---
 
-## Running the tests
+## Running the app
 
 ```bash
 # Create and activate the virtual environment
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-# Install dev dependencies
-pip install pytest
+# Install dependencies
+pip install -r requirements.txt
 
-# Run the test suite
+# Run with demo deck
+python main.py
+
+# Run with your own Arena decklist
+python main.py my_deck.txt
+```
+
+---
+
+## Key bindings
+
+| Key | Action |
+|-----|--------|
+| `tab` / `shift+tab` | Cycle focus between panes |
+| `↑` / `↓` | Navigate items in conditions/simulations pane |
+| `n` | Draw next turn |
+| `r` | Reset game state |
+| `s` | Run all simulations |
+| `a` | Add condition |
+| `A` | Add simulation |
+| `d` | Delete selected condition or simulation |
+| `q` | Quit |
+
+---
+
+## Running the tests
+
+```bash
+source .venv/bin/activate
 python -m pytest mtg_sim/tests/
 ```
 
@@ -124,18 +157,6 @@ seed      =         ; leave blank for random
 
 ---
 
-## Roadmap
-
-- [x] Stage 1 — Simulation engine (deck parser, game state, conditions, simulations)
-- [ ] Stage 2 — Textual TUI scaffold (4-pane layout, navigation)
-- [ ] Stage 3 — Interactive mode (live deck/hand updates, turn advancement)
-- [ ] Stage 4 — Condition and simulation CRUD (add, edit, delete via UI)
-- [ ] Stage 5 — Batch runner with progress display and stats
-- [ ] Stage 6 — Config integration and polish
-- [ ] Future — Mulligan simulation (London mulligan)
-
----
-
 ## Decklist format
 
 MTG Arena export format is supported. Copy your deck from MTG Arena and paste it into a `.txt` file:
@@ -153,3 +174,15 @@ Sideboard
 ```
 
 The sideboard section is ignored. Set codes like `Lightning Bolt (M11) 100` are handled automatically.
+
+---
+
+## Roadmap
+
+- [x] Stage 1 — Simulation engine (deck parser, game state, conditions, simulations)
+- [x] Stage 2 — Textual TUI scaffold (4-pane layout, navigation, modals)
+- [ ] Stage 3 — Interactive mode (live deck/hand updates, turn advancement)
+- [ ] Stage 4 — Condition and simulation CRUD (add, edit, delete via UI)
+- [ ] Stage 5 — Batch runner with progress display and stats
+- [ ] Stage 6 — Config integration and polish
+- [ ] Future — Mulligan simulation (London mulligan)
