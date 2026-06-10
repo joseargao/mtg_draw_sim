@@ -370,3 +370,41 @@ Button.-primary:hover {
     background: #1a3a5c;
     color: #6ab4ff;
 }
+
+.modal-error {
+    color: #ff6b6b;
+    height: 1;
+    margin-top: 1;
+}
+
+.modal-picker-row {
+    height: 3;
+    margin-top: 0;
+}
+
+.modal-picker-select {
+    width: 1fr;
+}
+
+.modal-picker-btn {
+    width: 8;
+    margin-left: 1;
+}
+
+.modal-condition-list {
+    height: 6;
+    background: #0e0e0e;
+    border: tall #2a2a2a;
+    margin-top: 1;
+    padding: 0 1;
+}
+
+.modal-condition-tag {
+    color: #2ecc71;
+    height: 1;
+}
+
+.modal-no-conditions {
+    color: #444444;
+    height: 1;
+}

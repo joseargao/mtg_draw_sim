@@ -2,7 +2,7 @@
 
 A terminal-based deck draw simulator for Magic: The Gathering. Import any MTG Arena decklist, define draw conditions, run thousands of randomized simulations, and get statistical results on how consistently your deck hits its key draws.
 
-> **Status: Work in progress.** The simulation engine (Stage 1) and TUI scaffold (Stage 2) are complete. Interactive mode, full CRUD, and batch simulation progress are under active development.
+> **Status: Work in progress.** The simulation engine (Stage 1) and TUI scaffold with working CRUD (Stage 2) are complete. Live interactive mode, batch progress display, and config UI are under active development.
 
 ---
 
@@ -12,7 +12,7 @@ MTG Draw Sim is a **statistical draw analysis tool**, not a game simulator. Ther
 
 You define **conditions** like:
 
-- `Lightning Bolt > 0 by turn 1` — do I have at least one bolt in my opening hand?
+- `Goblin Guide > 0 by turn 1` — do I have at least one in my opening hand?
 - `Forest >= 2 by turn 3` — do I have enough lands to ramp?
 
 You group conditions into **simulations** with AND/OR logic, run them tens of thousands of times, and get back success rates — per condition and overall.
@@ -23,8 +23,9 @@ You group conditions into **simulations** with AND/OR logic, run them tens of th
 
 - Import decklists directly from MTG Arena export format
 - Terminal UI with 4 panes: library, hand, conditions, simulations
-- Define reusable draw conditions (card, comparator, count, turn deadline)
+- Define reusable draw conditions via searchable card name dropdown
 - Group conditions into named simulations with ANY (OR) / ALL (AND) success logic
+- Assign multiple conditions to a simulation via dropdown + Add button
 - Run thousands of randomized independent games per simulation
 - Per-condition hit rates alongside overall simulation success rate
 - Seeded RNG for fully reproducible results
@@ -90,14 +91,16 @@ python main.py my_deck.txt
 
 | Key | Action |
 |-----|--------|
-| `tab` / `shift+tab` | Cycle focus between panes |
-| `↑` / `↓` | Navigate items in conditions/simulations pane |
+| `Tab` | Move focus to the next pane |
+| `Shift+Tab` | Move focus to the previous pane |
+| `↑` / `↓` | Navigate items within the focused pane |
 | `n` | Draw next turn |
 | `r` | Reset game state |
 | `s` | Run all simulations |
 | `a` | Add condition |
 | `A` | Add simulation |
 | `d` | Delete selected condition or simulation |
+| `Escape` | Close modal dialog |
 | `q` | Quit |
 
 ---
@@ -159,7 +162,7 @@ seed      =         ; leave blank for random
 
 ## Decklist format
 
-MTG Arena export format is supported. Copy your deck from MTG Arena and paste it into a `.txt` file:
+MTG Arena export format is supported. Copy your deck directly from MTG Arena:
 
 ```
 Deck
@@ -180,9 +183,10 @@ The sideboard section is ignored. Set codes like `Lightning Bolt (M11) 100` are 
 ## Roadmap
 
 - [x] Stage 1 — Simulation engine (deck parser, game state, conditions, simulations)
-- [x] Stage 2 — Textual TUI scaffold (4-pane layout, navigation, modals)
+- [x] Stage 2 — Textual TUI (4-pane layout, navigation, condition/simulation CRUD)
 - [ ] Stage 3 — Interactive mode (live deck/hand updates, turn advancement)
-- [ ] Stage 4 — Condition and simulation CRUD (add, edit, delete via UI)
-- [ ] Stage 5 — Batch runner with progress display and stats
+- [ ] Stage 4 — Edit existing conditions and simulations
+- [ ] Stage 5 — Batch runner with async progress display
 - [ ] Stage 6 — Config integration and polish
 - [ ] Future — Mulligan simulation (London mulligan)
+- [ ] Future — Mouse support

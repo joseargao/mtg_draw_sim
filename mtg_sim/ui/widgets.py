@@ -190,7 +190,7 @@ class ConditionsPane(Widget):
                     line2 = ""
 
                 text = line1 + ("\n" + line2 if line2 else "")
-                scroll.mount(Static(text, classes=f"cond-item{sel_cls}", id=f"cond-{i}"))
+                scroll.mount(Static(text, markup=False, classes=f"cond-item{sel_cls}"))
 
         # Update title
         count = len(conditions)
@@ -282,7 +282,7 @@ class SimulationsPane(Widget):
                 uses   = f"{'':6}uses: {uses_str}"
 
                 block = header + "\n" + meta + "\n" + uses
-                scroll.mount(Static(block, classes=f"sim-item{sel_cls}", id=f"sim-{i}"))
+                scroll.mount(Static(block, markup=False, classes=f"sim-item{sel_cls}"))
                 if i < len(simulations) - 1:
                     scroll.mount(Static("─" * 50, classes="sim-divider"))
 

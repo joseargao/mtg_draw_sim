@@ -1,41 +1,25 @@
 """
 mtg_sim/ui/app.py — Main Textual application.
-
-Stage 2: 4-pane layout, keyboard navigation, static data display.
-Stage 3 will wire interactive turn/reset actions.
-Stage 4 will complete CRUD modals.
 """
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Callable
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
-from textual.widgets import Footer, Label, Static
+from textual.containers import Grid
+from textual.widgets import Static
 
 from ..engine.app_state import AppState
-from ..engine.config import Config
 from ..engine.deck import Deck
-from ..engine.simulation import (
-    Comparator, Condition, Simulation, SuccessRule, SimulationRunner,
-)
+from ..engine.simulation import Comparator, Condition, Simulation, SuccessRule
 from .widgets import ConditionsPane, HandPane, LibraryPane, SimulationsPane
 from .modals import ConditionModal, SimulationModal
 
 
-# ---------------------------------------------------------------------------
-# MtgSimApp
-# ---------------------------------------------------------------------------
-
 def _css_path() -> Path:
-    """
-    Resolve app.tcss at runtime, handling both normal execution and
-    PyInstaller bundles where __file__ points inside a temp directory.
-    """
     if getattr(sys, "frozen", False):
         base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
         return base / "mtg_sim" / "ui" / "app.tcss"
@@ -48,9 +32,10 @@ class MtgSimApp(App):
     CSS_PATH = _css_path()
 
     BINDINGS = [
-        # Navigation
-        Binding("tab",       "focus_next_pane",  "next pane",   show=False),
-        Binding("shift+tab", "focus_prev_pane",  "prev pane",   show=False),
+        # Tab handling: override Textual's built-in focus_next/focus_previous
+        # with our own pane-level cycling so Tab skips inner widgets.
+        Binding("tab",       "focus_next_pane",  "next pane",   show=False, priority=True),
+        Binding("shift+tab", "focus_prev_pane",  "prev pane",   show=False, priority=True),
         Binding("up",        "select_prev",      "prev item",   show=False),
         Binding("down",      "select_next",      "next item",   show=False),
         # Game actions
@@ -65,13 +50,12 @@ class MtgSimApp(App):
         Binding("q", "quit", "quit"),
     ]
 
-    # Pane focus order
     PANE_IDS = ["pane-library", "pane-hand", "pane-conditions", "pane-simulations"]
 
     def __init__(self, state: AppState, **kwargs) -> None:
         super().__init__(**kwargs)
         self._state = state
-        self._pane_index = 0   # which pane has focus
+        self._pane_index = 0
 
     # ------------------------------------------------------------------
     # Layout
@@ -79,63 +63,50 @@ class MtgSimApp(App):
 
     def compose(self) -> ComposeResult:
         state = self._state
-
-        # Title bar
         deck_label = state.deck.source if state.deck else "no deck"
-        yield Static(
-            f" mtg_sim  [dim]│[/dim]  {deck_label}",
-            id="title-bar",
-        )
+        yield Static(f" mtg_sim  [dim]│[/dim]  {deck_label}", id="title-bar")
 
-        # 2×2 grid
-        lib_pane  = LibraryPane(state,  id="pane-library",     classes="pane")
-        hand_pane = HandPane(state,     id="pane-hand",        classes="pane")
-        cond_pane = ConditionsPane(state, id="pane-conditions", classes="pane")
-        sim_pane  = SimulationsPane(state, id="pane-simulations", classes="pane")
-
-        from textual.containers import Grid
         with Grid(id="main-grid"):
-            yield lib_pane
-            yield hand_pane
-            yield cond_pane
-            yield sim_pane
+            yield LibraryPane(state,  id="pane-library",      classes="pane")
+            yield HandPane(state,     id="pane-hand",         classes="pane")
+            yield ConditionsPane(state, id="pane-conditions", classes="pane")
+            yield SimulationsPane(state, id="pane-simulations", classes="pane")
 
-        # Status bar with key hints
         yield Static(self._build_status(), id="status-bar")
 
     def _build_status(self) -> str:
         hints = [
-            ("[n]", "next turn"),
-            ("[r]", "reset"),
-            ("[s]", "run sims"),
-            ("[a]", "add cond"),
-            ("[A]", "add sim"),
-            ("[d]", "delete"),
-            ("[tab]", "focus"),
-            ("[q]", "quit"),
+            ("[n]", "next turn"), ("[r]", "reset"), ("[s]", "run sims"),
+            ("[a]", "add cond"), ("[A]", "add sim"), ("[d]", "delete"),
+            ("[tab]", "focus"), ("[q]", "quit"),
         ]
-        parts = [f"[dim]{key}[/dim] {desc}" for key, desc in hints]
-        return "  ".join(parts)
+        return "  ".join(f"[dim]{k}[/dim] {v}" for k, v in hints)
 
     def on_mount(self) -> None:
-        # Focus the library pane initially
         self._focus_pane(0)
 
     # ------------------------------------------------------------------
-    # Pane navigation
+    # Pane focus — priority=True on the bindings means these fire before
+    # Textual's built-in tab/shift-tab focus_next / focus_previous actions,
+    # so a single Tab always moves to the next pane rather than cycling
+    # through inner widgets first.
     # ------------------------------------------------------------------
 
     def _focus_pane(self, index: int) -> None:
         self._pane_index = index % len(self.PANE_IDS)
-        pane_id = self.PANE_IDS[self._pane_index]
-        pane = self.query_one(f"#{pane_id}")
-        pane.focus()
+        self.query_one(f"#{self.PANE_IDS[self._pane_index]}").focus()
 
     def action_focus_next_pane(self) -> None:
         self._focus_pane(self._pane_index + 1)
 
     def action_focus_prev_pane(self) -> None:
         self._focus_pane(self._pane_index - 1)
+
+    def on_focus(self, event) -> None:
+        """Keep _pane_index in sync if focus moves via mouse click."""
+        widget_id = event.widget.id
+        if widget_id in self.PANE_IDS:
+            self._pane_index = self.PANE_IDS.index(widget_id)
 
     def action_select_next(self) -> None:
         pane_id = self.PANE_IDS[self._pane_index]
@@ -177,11 +148,7 @@ class MtgSimApp(App):
         if not self._state.simulations:
             self.notify("No simulations defined.", severity="warning")
             return
-
-        count = len(self._state.simulations)
-        self.notify(f"Running {count} simulation(s)…")
-
-        # Run synchronously for now (Stage 5 will add async progress)
+        self.notify(f"Running {len(self._state.simulations)} simulation(s)…")
         self._state.run_all_simulations()
         self._refresh_all_panes()
         self.notify("Simulations complete.", severity="information")
@@ -191,7 +158,7 @@ class MtgSimApp(App):
     # ------------------------------------------------------------------
 
     def action_add_condition(self) -> None:
-        card_names = list(self._state.deck.counts.keys()) if self._state.deck else []
+        card_names = sorted(self._state.deck.counts.keys()) if self._state.deck else []
 
         def on_result(cond: Condition | None) -> None:
             if cond is None:
@@ -210,11 +177,13 @@ class MtgSimApp(App):
             self._refresh_simulations()
             self.notify(f"Simulation added: {sim.name}")
 
-        self.push_screen(SimulationModal(), on_result)
+        self.push_screen(
+            SimulationModal(conditions=self._state.conditions),
+            on_result,
+        )
 
     def action_delete_selected(self) -> None:
         pane_id = self.PANE_IDS[self._pane_index]
-
         if pane_id == "pane-conditions":
             pane = self.query_one("#pane-conditions", ConditionsPane)
             cond = pane.selected_condition
@@ -225,8 +194,7 @@ class MtgSimApp(App):
             pane.selected_index = -1
             self._refresh_conditions()
             self._refresh_simulations()
-            self.notify(f"Deleted condition: {cond.display_label}")
-
+            self.notify(f"Deleted: {cond.display_label}")
         elif pane_id == "pane-simulations":
             pane = self.query_one("#pane-simulations", SimulationsPane)
             sim = pane.selected_simulation
@@ -236,8 +204,7 @@ class MtgSimApp(App):
             self._state.remove_simulation(sim.id)
             pane.selected_index = -1
             self._refresh_simulations()
-            self.notify(f"Deleted simulation: {sim.name}")
-
+            self.notify(f"Deleted: {sim.name}")
         else:
             self.notify("Focus conditions or simulations pane to delete.", severity="warning")
 
@@ -266,9 +233,6 @@ class MtgSimApp(App):
 # ---------------------------------------------------------------------------
 
 def build_demo_state() -> AppState:
-    """Populate a demo AppState so Stage 2 has something to show."""
-    from ..engine.simulation import Comparator, Condition, Simulation, SuccessRule
-
     demo_deck = """
 Deck
 4 Lightning Bolt
@@ -303,7 +267,6 @@ Deck
 
 
 def run(state: AppState | None = None) -> None:
-    """Launch the TUI."""
     if state is None:
         state = build_demo_state()
     MtgSimApp(state).run()
