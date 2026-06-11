@@ -173,24 +173,23 @@ class ConditionsPane(Widget):
         content    = self.query_one("#cond-content", Static)
 
         if not conditions:
-            content.update("No conditions defined.\nPress [a] to add one.")
+            content.update("No conditions defined.\n[dim]Press [/dim][cyan]a[/cyan][dim] to add one.[/dim]")
             self.query_one("#cond-title", Label).update("CONDITIONS  [dim]0 defined[/dim]")
             return
 
         lines = []
         for i, cond in enumerate(conditions):
-            selected   = (i == self.selected_index)
-            cid        = f"[C{i+1}]"
-            rule       = f"by turn {cond.turn_deadline}"
-            expr       = f"{cond.card_name} {cond.comparator} {cond.count}"
-            label_text = cond.label or ""
-
-            if label_text:
-                line1 = f"{cid:<6}{label_text}"
-                line2 = f"{'':6}{expr:<34}{rule:>14}"
-                text  = line1 + "\n" + line2
+            selected = (i == self.selected_index)
+            cid      = f"[C{i+1}]"
+            # display_label returns the custom label if set,
+            # otherwise auto-generates from the rule itself
+            main = f"{cid:<6}{cond.display_label}"
+            # If a custom label exists, show the full rule as a subtitle
+            if cond.label:
+                rule_line = f"{"":6}{cond.card_name} {cond.comparator} {cond.count} by turn {cond.turn_deadline}"
+                text = main + "\n" + rule_line
             else:
-                text = f"{cid:<6}{expr:<34}{rule:>14}"
+                text = main
 
             if selected:
                 lines.append(f"[bold white]{text}[/bold white]")
@@ -254,7 +253,7 @@ class SimulationsPane(Widget):
         content     = self.query_one("#sim-content", Static)
 
         if not simulations:
-            content.update("No simulations defined.\nPress [A] to add one.")
+            content.update("No simulations defined.\n[dim]Press [/dim][cyan]A[/cyan][dim] to add one.[/dim]")
             self.query_one("#sim-title", Label).update("SIMULATIONS  [dim]0 defined[/dim]")
             return
 
@@ -263,6 +262,15 @@ class SimulationsPane(Widget):
             selected = (i == self.selected_index)
             sid      = f"[S{i+1}]"
             rule     = "ANY" if sim.success_rule == SuccessRule.ANY else "ALL"
+            # Default sim name: generate from conditions and rule if blank
+            if sim.name:
+                sim_name = sim.name
+            else:
+                cond_list = ", ".join(
+                    f"C{idx+1}" for idx in sim.condition_indices
+                    if 0 <= idx < len(self._state.conditions)
+                ) or "no conditions"
+                sim_name = f"{rule} of {cond_list}"
 
             cond_ids = [
                 f"[C{i+1}]" if 0 <= i < len(self._state.conditions) else "[C?]"
@@ -271,7 +279,7 @@ class SimulationsPane(Widget):
             uses_str = " ".join(cond_ids) if cond_ids else "none"
             turn_lim = sim.effective_turn_limit(self._state.conditions)
 
-            header = f"{sid:<6}{sim.name:<28}{rule:<5}{sim.status:>9}"
+            header = f"{sid:<6}{sim_name:<28}{rule:<5}{sim.status:>9}"
             meta   = f"{'':6}runs: {sim.run_count:,}  turns: {turn_lim}  rate: {sim.success_rate_pct}"
             uses   = f"{'':6}uses: {uses_str}"
             block  = header + "\n" + meta + "\n" + uses

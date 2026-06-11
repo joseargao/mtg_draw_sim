@@ -67,12 +67,12 @@ class MtgSimApp(App):
 
     def _build_status(self) -> str:
         hints = [
-            ("[n]", "next turn"), ("[r]", "reset"), ("[s]", "run sims"),
-            ("[a]", "add cond"), ("[A]", "add sim"), ("[d]", "delete"),
-            ("[↑↓]", "select"), ("[enter]", "edit"), ("[tab]", "focus"),
-            ("[q]", "quit"),
+            ("n", "next turn"), ("r", "reset"), ("s", "run sims"),
+            ("a", "add cond"), ("A", "add sim"), ("d", "delete"),
+            ("↑↓", "select"), ("enter", "edit"), ("tab", "focus"),
+            ("q", "quit"),
         ]
-        return "  ".join(f"[dim]{k}[/dim] {v}" for k, v in hints)
+        return "  ".join(f"[cyan]{k}[/cyan] [dim]{v}[/dim]" for k, v in hints)
 
     def on_mount(self) -> None:
         self._focus_pane(0)

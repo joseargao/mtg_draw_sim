@@ -281,9 +281,6 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
 
     def _save(self) -> None:
         name = self.query_one("#input-name", Input).value.strip()
-        if not name:
-            self._show_error("Name cannot be empty.")
-            return
         try:
             runs = int(self.query_one("#input-runs", Input).value.strip())
         except ValueError:
