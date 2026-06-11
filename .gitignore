@@ -26,3 +26,6 @@ config.ini
 *.swo
 .DS_Store
 Thumbs.db
+
+# Local test decklists
+deck*.txt
