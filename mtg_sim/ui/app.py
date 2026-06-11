@@ -38,6 +38,7 @@ class MtgSimApp(App):
         Binding("shift+tab", "focus_prev_pane",  "prev pane",   show=False, priority=True),
         Binding("up",        "select_prev",      "prev item",   show=False),
         Binding("down",      "select_next",      "next item",   show=False),
+        Binding("enter",     "edit_selected",    "edit",        show=False),
         # Game actions
         Binding("n", "next_turn",   "next turn"),
         Binding("r", "reset_game",  "reset"),
@@ -130,8 +131,8 @@ class MtgSimApp(App):
         if self._state.game_state is None:
             self.notify("Load a deck first.", severity="warning")
             return
-        self._state.advance_turn()
-        self._refresh_game_panes()
+        drawn = self._state.advance_turn()
+        self._refresh_game_panes(newly_drawn=drawn)
 
     def action_reset_game(self) -> None:
         if self._state.game_state is None:
@@ -182,6 +183,47 @@ class MtgSimApp(App):
             on_result,
         )
 
+    def action_edit_selected(self) -> None:
+        pane_id = self.PANE_IDS[self._pane_index]
+        if pane_id == "pane-conditions":
+            pane = self.query_one("#pane-conditions", ConditionsPane)
+            cond = pane.selected_condition
+            if cond is None:
+                self.notify("Select a condition first (up/down).", severity="warning")
+                return
+            card_names = sorted(self._state.deck.counts.keys()) if self._state.deck else []
+
+            def on_result(updated: Condition | None) -> None:
+                if updated is None:
+                    return
+                idx = next(i for i, c in enumerate(self._state.conditions) if c.id == updated.id)
+                self._state.conditions[idx] = updated
+                self._refresh_conditions()
+                self._refresh_simulations()
+                self.notify(f"Condition updated: {updated.display_label}")
+
+            self.push_screen(ConditionModal(card_names=card_names, existing=cond), on_result)
+
+        elif pane_id == "pane-simulations":
+            pane = self.query_one("#pane-simulations", SimulationsPane)
+            sim = pane.selected_simulation
+            if sim is None:
+                self.notify("Select a simulation first (up/down).", severity="warning")
+                return
+
+            def on_result(updated: Simulation | None) -> None:
+                if updated is None:
+                    return
+                idx = next(i for i, s in enumerate(self._state.simulations) if s.id == updated.id)
+                self._state.simulations[idx] = updated
+                self._refresh_simulations()
+                self.notify(f"Simulation updated: {updated.name}")
+
+            self.push_screen(
+                SimulationModal(conditions=self._state.conditions, existing=sim),
+                on_result,
+            )
+
     def action_delete_selected(self) -> None:
         pane_id = self.PANE_IDS[self._pane_index]
         if pane_id == "pane-conditions":
@@ -212,9 +254,14 @@ class MtgSimApp(App):
     # Refresh helpers
     # ------------------------------------------------------------------
 
-    def _refresh_game_panes(self) -> None:
-        self.query_one("#pane-library", LibraryPane).refresh_library()
-        self.query_one("#pane-hand", HandPane).refresh_hand()
+    def _refresh_game_panes(self, newly_drawn=None) -> None:
+        drawn_names = [c.name for c in (newly_drawn or [])]
+        self.query_one("#pane-library", LibraryPane).refresh_library(
+            highlight_names=drawn_names if drawn_names else None
+        )
+        self.query_one("#pane-hand", HandPane).refresh_hand(
+            newly_drawn=newly_drawn or []
+        )
 
     def _refresh_conditions(self) -> None:
         self.query_one("#pane-conditions", ConditionsPane).refresh_conditions()

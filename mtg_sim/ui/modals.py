@@ -5,9 +5,9 @@ mtg_sim/ui/modals.py — Modal dialogs for condition and simulation CRUD.
 from __future__ import annotations
 
 import uuid
-import dataclasses
 
 from textual.app import ComposeResult
+from textual.widget import Widget
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select, Static
 from textual.containers import Horizontal, Vertical, ScrollableContainer
@@ -267,8 +267,8 @@ class SimulationModal(ModalScreen[Simulation | None]):
         label = c.label or f"{c.card_name} {c.comparator} {c.count}"
         return f"{label}  (by turn {c.turn_deadline})"
 
-    def _build_condition_tags(self) -> list[Static]:
-        """Build the list of currently assigned condition rows."""
+    def _build_condition_tags(self) -> list[Widget]:
+        """Build the list of currently assigned condition rows with remove buttons."""
         if not self._selected_ids:
             return [Static("No conditions added yet.", classes="modal-no-conditions")]
         widgets = []
@@ -277,20 +277,30 @@ class SimulationModal(ModalScreen[Simulation | None]):
             if cond is None:
                 continue
             label = self._condition_label(cond)
-            widgets.append(
-                Static(f"  {label}",
-                       markup=False,
-                       classes="modal-condition-tag",
-                       id=f"tag-{cid}")
-            )
+            row = Horizontal(classes="modal-condition-row", id=f"row-{cid}")
+            row._cid = cid
+            widgets.append(row)
         return widgets
 
     def _rebuild_condition_list(self) -> None:
         """Re-render the condition list and refresh the dropdown options."""
         container = self.query_one("#condition-list", ScrollableContainer)
         container.remove_children()
-        for w in self._build_condition_tags():
-            container.mount(w)
+
+        if not self._selected_ids:
+            container.mount(Static("No conditions added yet.", classes="modal-no-conditions"))
+        else:
+            for cid in self._selected_ids:
+                cond = next((c for c in self._all_conditions if c.id == cid), None)
+                if cond is None:
+                    continue
+                label = self._condition_label(cond)
+                row = Horizontal(classes="modal-condition-row")
+                lbl = Static(f" {label}", markup=False, classes="modal-condition-tag")
+                btn = Button("x", classes="modal-condition-remove", id=f"rm-{cid}")
+                container.mount(row)
+                row.mount(lbl)
+                row.mount(btn)
 
         # Refresh dropdown to remove already-added conditions
         picker = self.query_one("#select-condition", Select)
@@ -301,12 +311,18 @@ class SimulationModal(ModalScreen[Simulation | None]):
     # ------------------------------------------------------------------
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-cancel":
+        bid = event.button.id or ""
+        if bid == "btn-cancel":
             self.dismiss(None)
-        elif event.button.id == "btn-save":
+        elif bid == "btn-save":
             self._save()
-        elif event.button.id == "btn-add-condition":
+        elif bid == "btn-add-condition":
             self._add_condition()
+        elif bid.startswith("rm-"):
+            cid = bid[3:]
+            if cid in self._selected_ids:
+                self._selected_ids.remove(cid)
+            self._rebuild_condition_list()
 
     def action_cancel(self) -> None:
         self.dismiss(None)

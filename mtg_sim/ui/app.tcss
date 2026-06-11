@@ -408,3 +408,40 @@ Button.-primary:hover {
     color: #444444;
     height: 1;
 }
+
+.hand-flash {
+    color: #ffffff;
+    text-style: bold;
+}
+
+.lib-just-drawn {
+    color: #4a9eff;
+}
+
+.lib-exhausted {
+    color: #333333;
+}
+
+.lib-partial {
+    color: #888888;
+}
+
+.modal-condition-row {
+    height: 1;
+    layout: horizontal;
+}
+
+.modal-condition-remove {
+    width: 3;
+    min-width: 3;
+    height: 1;
+    margin-left: 1;
+    background: #2a0a0a;
+    border: tall #5a1a1a;
+    color: #cc4444;
+}
+
+.modal-condition-remove:hover {
+    background: #3a0a0a;
+    color: #ff6666;
+}
