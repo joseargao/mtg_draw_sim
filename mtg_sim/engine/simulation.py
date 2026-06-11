@@ -127,7 +127,7 @@ class Simulation:
     The runner resolves these to actual Condition objects at run time,
     so editing a condition is always reflected without any reference juggling.
     """
-    name: str
+    label: str = ""
     condition_indices: list[int] = field(default_factory=list)
     success_rule: SuccessRule = SuccessRule.ALL
     run_count: int = 10_000
@@ -139,6 +139,16 @@ class Simulation:
     condition_hits: dict[int, int] = field(default_factory=dict)  # index -> hits
     elapsed_seconds: float = 0.0
     status: str = "READY"
+
+    @property
+    def display_label(self) -> str:
+        return self.label or self._auto_label()
+
+    def _auto_label(self) -> str:
+        if not self.condition_indices:
+            return f"{self.success_rule.value} (no conditions)"
+        indices = ", ".join(f"C{i+1}" for i in self.condition_indices)
+        return f"{self.success_rule.value} of {indices}"
 
     def effective_turn_limit(self, all_conditions: list[Condition]) -> int:
         if self.turn_limit is not None:
@@ -195,10 +205,7 @@ class Simulation:
                 )
 
     def __str__(self) -> str:
-        return (
-            f"{self.name} ({self.success_rule.value}) "
-            f"| {self.success_rate_pct} over {self.total_runs} runs"
-        )
+        return f"{self.display_label} | {self.success_rate_pct} over {self.total_runs} runs"
 
 
 # ---------------------------------------------------------------------------

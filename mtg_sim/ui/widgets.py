@@ -262,15 +262,6 @@ class SimulationsPane(Widget):
             selected = (i == self.selected_index)
             sid      = f"[S{i+1}]"
             rule     = "ANY" if sim.success_rule == SuccessRule.ANY else "ALL"
-            # Default sim name: generate from conditions and rule if blank
-            if sim.name:
-                sim_name = sim.name
-            else:
-                cond_list = ", ".join(
-                    f"C{idx+1}" for idx in sim.condition_indices
-                    if 0 <= idx < len(self._state.conditions)
-                ) or "no conditions"
-                sim_name = f"{rule} of {cond_list}"
 
             cond_ids = [
                 f"[C{i+1}]" if 0 <= i < len(self._state.conditions) else "[C?]"
@@ -279,7 +270,7 @@ class SimulationsPane(Widget):
             uses_str = " ".join(cond_ids) if cond_ids else "none"
             turn_lim = sim.effective_turn_limit(self._state.conditions)
 
-            header = f"{sid:<6}{sim_name:<28}{rule:<5}{sim.status:>9}"
+            header = f"{sid:<6}{sim.display_label:<28}{rule:<5}{sim.status:>9}"
             meta   = f"{'':6}runs: {sim.run_count:,}  turns: {turn_lim}  rate: {sim.success_rate_pct}"
             uses   = f"{'':6}uses: {uses_str}"
             block  = header + "\n" + meta + "\n" + uses

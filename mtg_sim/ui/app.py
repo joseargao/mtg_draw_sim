@@ -295,9 +295,9 @@ Deck
     state.add_condition(c2)
     state.add_condition(c3)
 
-    s1 = Simulation("Aggro opener", condition_indices=[0, 1],
+    s1 = Simulation(label="Aggro opener", condition_indices=[0, 1],
                     success_rule=SuccessRule.ANY, run_count=10_000)
-    s2 = Simulation("Full setup",  condition_indices=[0, 2],
+    s2 = Simulation(label="Full setup",  condition_indices=[0, 2],
                     success_rule=SuccessRule.ALL, run_count=10_000)
     state.add_simulation(s1)
     state.add_simulation(s2)

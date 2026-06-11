@@ -159,10 +159,10 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
         with Vertical(classes="modal-container"):
             yield Static("Edit simulation" if ex else "Add simulation", classes="modal-title")
 
-            yield Label("Name", classes="modal-label")
+            yield Label("Label (optional)", classes="modal-label")
             yield Input(
-                value=ex.name if ex else "",
-                placeholder="e.g. Aggro opener",
+                value=ex.label if ex else "",
+                placeholder="auto-generated if blank",
                 id="input-name",
             )
 
@@ -280,7 +280,7 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
         self.query_one("#modal-error", Static).update(f"[red]{msg}[/red]")
 
     def _save(self) -> None:
-        name = self.query_one("#input-name", Input).value.strip()
+        label = self.query_one("#input-name", Input).value.strip()
         try:
             runs = int(self.query_one("#input-runs", Input).value.strip())
         except ValueError:
@@ -305,7 +305,7 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
 
         ex = self._existing
         sim = Simulation(
-            name=name,
+            label=label,
             success_rule=rule,
             run_count=runs,
             turn_limit=turn_limit,
