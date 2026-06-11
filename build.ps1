@@ -1,5 +1,5 @@
 # =============================================================================
-# build.ps1 — MTG Sim build script (Windows)
+# build.ps1 - MTG Sim build script (Windows)
 #
 # Usage:
 #   .\build.ps1              # standard build
@@ -23,42 +23,25 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
 $AppName    = "mtg_sim"
 $EntryPoint = "main.py"
 $VenvDir    = ".venv"
 $DistDir    = "dist"
 $BuildDir   = "build"
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 function Log  { param($msg) Write-Host "[build] $msg" -ForegroundColor Cyan }
 function Warn { param($msg) Write-Host "[build] WARNING: $msg" -ForegroundColor Yellow }
 function Die  { param($msg) Write-Host "[build] ERROR: $msg" -ForegroundColor Red; exit 1 }
 
-# ---------------------------------------------------------------------------
-# Help
-# ---------------------------------------------------------------------------
 if ($Help) {
-    Write-Host @"
-Usage: .\build.ps1 [options]
-
-  -OneFile    Bundle into a single .exe file (slower startup)
-  -Clean      Remove build/dist artifacts and exit
-  -Help       Show this message
-
-Output: dist\$AppName\$AppName.exe   (default)
-        dist\$AppName.exe            (with -OneFile)
-"@
+    Write-Host "Usage: .\build.ps1 [options]"
+    Write-Host ""
+    Write-Host "  -OneFile    Bundle into a single .exe file (slower startup)"
+    Write-Host "  -Clean      Remove build/dist artifacts and exit"
+    Write-Host "  -Help       Show this message"
     exit 0
 }
 
-# ---------------------------------------------------------------------------
-# Clean
-# ---------------------------------------------------------------------------
 if ($Clean) {
     Log "Cleaning build artifacts..."
     foreach ($dir in @($BuildDir, $DistDir)) {
@@ -69,9 +52,6 @@ if ($Clean) {
     exit 0
 }
 
-# ---------------------------------------------------------------------------
-# Sanity checks
-# ---------------------------------------------------------------------------
 Log "Checking Python..."
 $PythonCmd = $null
 foreach ($candidate in @("python", "python3", "py")) {
@@ -81,89 +61,74 @@ foreach ($candidate in @("python", "python3", "py")) {
     }
 }
 if (-not $PythonCmd) {
-    Die "Python not found. Install Python 3.10+ from https://python.org and ensure it's on PATH."
+    Die "Python not found. Install Python 3.10+ from https://python.org and ensure it is on PATH."
 }
 
 $PyVersion = & $PythonCmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-$PyMajor   = & $PythonCmd -c "import sys; print(sys.version_info.major)"
-$PyMinor   = & $PythonCmd -c "import sys; print(sys.version_info.minor)"
+$PyMajor   = [int](& $PythonCmd -c "import sys; print(sys.version_info.major)")
+$PyMinor   = [int](& $PythonCmd -c "import sys; print(sys.version_info.minor)")
 
-if ([int]$PyMajor -lt 3 -or ([int]$PyMajor -eq 3 -and [int]$PyMinor -lt 10)) {
+if ($PyMajor -lt 3 -or ($PyMajor -eq 3 -and $PyMinor -lt 10)) {
     Die "Python 3.10+ required (found $PyVersion)."
 }
-Log "  Python $PyVersion — OK"
+Log "  Python $PyVersion - OK"
 
-# ---------------------------------------------------------------------------
-# Virtual environment
-# ---------------------------------------------------------------------------
 if (-not (Test-Path $VenvDir)) {
     Log "Creating virtual environment in $VenvDir..."
     & $PythonCmd -m venv $VenvDir
 }
 
-$Pip          = "$VenvDir\Scripts\pip.exe"
-$PyInstaller  = "$VenvDir\Scripts\pyinstaller.exe"
-$VenvPython   = "$VenvDir\Scripts\python.exe"
-$Pytest       = "$VenvDir\Scripts\pytest.exe"
+$Pip         = "$VenvDir\Scripts\pip.exe"
+$PyInstaller = "$VenvDir\Scripts\pyinstaller.exe"
+$VenvPython  = "$VenvDir\Scripts\python.exe"
 
 Log "Upgrading pip..."
 & $Pip install --upgrade pip --quiet
 
-# ---------------------------------------------------------------------------
-# Dependencies
-# ---------------------------------------------------------------------------
 Log "Installing dependencies..."
 if (Test-Path "requirements.txt") {
     & $Pip install -r requirements.txt --quiet
     Log "  Installed from requirements.txt"
 } else {
-    Warn "No requirements.txt found — installing PyInstaller only."
+    Warn "No requirements.txt found - installing PyInstaller only."
 }
-& $Pip install pyinstaller --quiet
-Log "  PyInstaller ready"
+& $Pip install pyinstaller pytest --quiet
+Log "  PyInstaller + pytest ready"
 
-# ---------------------------------------------------------------------------
-# Entrypoint check
-# ---------------------------------------------------------------------------
+if ((Test-Path "setup.py") -or (Test-Path "pyproject.toml")) {
+    & $Pip install -e . --quiet
+    Log "  Project installed (editable mode)"
+} else {
+    $SitePackages = & $VenvPython -c "import site; print(site.getsitepackages()[0])"
+    $ProjectRoot  = (Get-Location).Path
+    Set-Content -Path "$SitePackages\mtg_sim_dev.pth" -Value $ProjectRoot -Encoding UTF8
+    Log "  Project root added to venv path via mtg_sim_dev.pth"
+}
+
 $StubCreated = $false
 if (-not (Test-Path $EntryPoint)) {
-    Warn "$EntryPoint not found — creating a temporary stub."
+    Warn "$EntryPoint not found - creating a temporary stub."
     Warn "Replace this with your real entrypoint before distributing."
-    @'
-"""
-Temporary entrypoint stub.
-Replace with the real TUI entrypoint once the UI is implemented.
-"""
-import sys
-print("MTG Sim -- engine loaded successfully.")
-print("TUI not yet implemented. Run the tests with: python -m pytest mtg_sim/tests/")
-sys.exit(0)
-'@ | Set-Content $EntryPoint -Encoding UTF8
+    $stubContent = "import sys`nimport mtg_sim.engine`nprint('MTG Sim -- engine loaded successfully.')`nprint('TUI not yet implemented. Run tests with: python -m pytest mtg_sim/tests/')`nsys.exit(0)"
+    Set-Content -Path $EntryPoint -Value $stubContent -Encoding UTF8
     $StubCreated = $true
 }
 
-# ---------------------------------------------------------------------------
-# Run tests before building
-# ---------------------------------------------------------------------------
-if (Test-Path $Pytest) {
-    Log "Running tests..."
-    & $Pytest mtg_sim/tests/ -q
-    if ($LASTEXITCODE -ne 0) {
-        if ($StubCreated) { Remove-Item $EntryPoint -Force }
-        Die "Tests failed — fix errors before building."
-    }
-    Log "  All tests passed."
-} else {
-    Warn "pytest not available in venv — skipping tests."
+Log "Running tests..."
+& $VenvPython -m pytest mtg_sim/tests/ -q
+if ($LASTEXITCODE -ne 0) {
+    if ($StubCreated) { Remove-Item $EntryPoint -Force }
+    Die "Tests failed - fix errors before building."
 }
+Log "  All tests passed."
 
-# ---------------------------------------------------------------------------
-# Build
-# ---------------------------------------------------------------------------
+$ProjectRoot = (Get-Location).Path
+
 $PyInstallerArgs = @(
-    "--name", $AppName,
-    "--distpath", $DistDir,
-    "--workpath", $BuildDir,
+    "--name",      $AppName,
+    "--distpath",  $DistDir,
+    "--workpath",  $BuildDir,
+    "--paths",     $ProjectRoot,
     "--noconfirm",
     "--clean"
 )
@@ -176,13 +141,12 @@ if ($OneFile) {
     Log "Build mode: directory (use -OneFile for a single .exe)"
 }
 
-# Add data files if present
-if (Test-Path "mtg_sim")         { $PyInstallerArgs += "--add-data=mtg_sim;mtg_sim" }
-if (Test-Path "config.ini")      { $PyInstallerArgs += "--add-data=config.ini;." }
-if (Test-Path "requirements.txt"){ $PyInstallerArgs += "--add-data=requirements.txt;." }
+if (Test-Path "mtg_sim")          { $PyInstallerArgs += "--add-data=mtg_sim;mtg_sim" }
+if (Test-Path "config.ini")       { $PyInstallerArgs += "--add-data=config.ini;." }
+if (Test-Path "requirements.txt") { $PyInstallerArgs += "--add-data=requirements.txt;." }
 
-# Hidden imports
 $PyInstallerArgs += @(
+    "--hidden-import=mtg_sim",
     "--hidden-import=mtg_sim.engine",
     "--hidden-import=mtg_sim.engine.deck",
     "--hidden-import=mtg_sim.engine.game_state",
@@ -196,16 +160,10 @@ $PyInstallerArgs += $EntryPoint
 Log "Running PyInstaller..."
 & $PyInstaller @PyInstallerArgs
 
-# ---------------------------------------------------------------------------
-# Cleanup stub
-# ---------------------------------------------------------------------------
 if ($StubCreated) {
     Remove-Item $EntryPoint -Force
 }
 
-# ---------------------------------------------------------------------------
-# Report
-# ---------------------------------------------------------------------------
 if ($OneFile) {
     $Output = "$DistDir\$AppName.exe"
 } else {
