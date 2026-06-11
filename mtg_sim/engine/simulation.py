@@ -146,9 +146,10 @@ class Simulation:
 
     def _auto_label(self) -> str:
         if not self.condition_indices:
-            return f"{self.success_rule.value} (no conditions)"
-        indices = ", ".join(f"C{i+1}" for i in self.condition_indices)
-        return f"{self.success_rule.value} of {indices}"
+            return "(no conditions)"
+        indices = ", ".join(str(i+1) for i in self.condition_indices)
+        rule = "All" if self.success_rule == SuccessRule.ALL else "Any"
+        return f"{rule} of condition {indices}"
 
     def effective_turn_limit(self, all_conditions: list[Condition]) -> int:
         if self.turn_limit is not None:

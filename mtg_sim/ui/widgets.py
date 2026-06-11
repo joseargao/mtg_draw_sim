@@ -79,8 +79,9 @@ class LibraryPane(Widget):
         lines.append(f"[yellow]TOTAL  {total_deck} → {gs.library_size}[/yellow]")
 
         content.update("\n".join(lines))
+        total = sum(self._state.deck.counts.values()) if self._state.deck else 0
         self.query_one("#lib-title", Label).update(
-            f"LIBRARY  [dim]turn {gs.turn}[/dim]"
+            f"DECK  [dim]{total}x  —  turn {gs.turn}[/dim]"
         )
 
         if highlight_names:
@@ -135,7 +136,7 @@ class HandPane(Widget):
             content.update("\n".join(lines))
 
         self.query_one("#hand-title", Label).update(
-            f"HAND  [dim]{gs.hand_size_current} cards[/dim]"
+            f"HAND  [dim]{gs.hand_size_current}x, turn {gs.turn}[/dim]"
         )
 
         if drawn_names:
@@ -173,20 +174,20 @@ class ConditionsPane(Widget):
         content    = self.query_one("#cond-content", Static)
 
         if not conditions:
-            content.update("No conditions defined.\n[dim]Press [/dim][cyan]a[/cyan][dim] to add one.[/dim]")
-            self.query_one("#cond-title", Label).update("CONDITIONS  [dim]0 defined[/dim]")
+            content.update("")
+            self.query_one("#cond-title", Label).update(
+                "CONDITIONS  [dim][/dim]  [cyan]a[/cyan][dim] add  [/dim][cyan]d[/cyan][dim] del  [/dim][cyan]enter[/cyan][dim] edit[/dim]"
+            )
             return
 
         lines = []
         for i, cond in enumerate(conditions):
             selected = (i == self.selected_index)
-            cid      = f"[C{i+1}]"
-            # display_label returns the custom label if set,
-            # otherwise auto-generates from the rule itself
-            main = f"{cid:<6}{cond.display_label}"
+            num  = f"{i+1}."
+            main = f"{num:<4}{cond.display_label}"
             # If a custom label exists, show the full rule as a subtitle
             if cond.label:
-                rule_line = f"{"":6}{cond.card_name} {cond.comparator} {cond.count} by turn {cond.turn_deadline}"
+                rule_line = f"{"":4}{cond.card_name} {cond.comparator} {cond.count} by turn {cond.turn_deadline}"
                 text = main + "\n" + rule_line
             else:
                 text = main
@@ -198,7 +199,7 @@ class ConditionsPane(Widget):
 
         content.update("\n".join(lines))
         self.query_one("#cond-title", Label).update(
-            f"CONDITIONS  [dim]{len(conditions)} defined[/dim]"
+            f"CONDITIONS  [dim]{len(conditions)}x  [/dim]  [cyan]a[/cyan][dim] add  [/dim][cyan]d[/cyan][dim] del  [/dim][cyan]enter[/cyan][dim] edit[/dim]"
         )
 
     def watch_selected_index(self, old: int, new: int) -> None:
@@ -253,27 +254,22 @@ class SimulationsPane(Widget):
         content     = self.query_one("#sim-content", Static)
 
         if not simulations:
-            content.update("No simulations defined.\n[dim]Press [/dim][cyan]A[/cyan][dim] to add one.[/dim]")
-            self.query_one("#sim-title", Label).update("SIMULATIONS  [dim]0 defined[/dim]")
+            content.update("")
+            self.query_one("#sim-title", Label).update(
+                "SIMULATIONS  [dim][/dim]  [cyan]A[/cyan][dim] add  [/dim][cyan]d[/cyan][dim] del  [/dim][cyan]enter[/cyan][dim] edit[/dim]"
+            )
             return
 
         lines = []
         for i, sim in enumerate(simulations):
             selected = (i == self.selected_index)
-            sid      = f"[S{i+1}]"
-            rule     = "ANY" if sim.success_rule == SuccessRule.ANY else "ALL"
-
-            cond_ids = [
-                f"[C{i+1}]" if 0 <= i < len(self._state.conditions) else "[C?]"
-                for i in sim.condition_indices
-            ]
-            uses_str = " ".join(cond_ids) if cond_ids else "none"
+            num      = f"{i+1}."
             turn_lim = sim.effective_turn_limit(self._state.conditions)
+            rate_str = sim.success_rate_pct if sim.status == "COMPLETE" else "ready to run"
 
-            header = f"{sid:<6}{sim.display_label:<28}{rule:<5}{sim.status:>9}"
-            meta   = f"{'':6}runs: {sim.run_count:,}  turns: {turn_lim}  rate: {sim.success_rate_pct}"
-            uses   = f"{'':6}uses: {uses_str}"
-            block  = header + "\n" + meta + "\n" + uses
+            header = f"{num:<4}{sim.display_label}"
+            meta   = f"{'':4}runs: {sim.run_count:,}  turns: {turn_lim}  rate: {rate_str}"
+            block  = header + "\n" + meta
 
             if selected:
                 lines.append(f"[bold white]{block}[/bold white]")
@@ -285,7 +281,7 @@ class SimulationsPane(Widget):
 
         content.update("\n".join(lines))
         self.query_one("#sim-title", Label).update(
-            f"SIMULATIONS  [dim]{len(simulations)} defined[/dim]"
+            f"SIMULATIONS  [dim]{len(simulations)}x  [/dim]  [cyan]A[/cyan][dim] add  [/dim][cyan]d[/cyan][dim] del  [/dim][cyan]enter[/cyan][dim] edit[/dim]"
         )
 
     def watch_selected_index(self, old: int, new: int) -> None:

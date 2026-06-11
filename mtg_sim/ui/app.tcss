@@ -36,6 +36,7 @@ Screen {
     border: tall #1e1e1e;
     background: #111111;
     padding: 0;
+    layout: vertical;
 }
 
 .pane:focus-within {
@@ -45,7 +46,7 @@ Screen {
 .pane-title {
     background: #191919;
     color: #555555;
-    height: 1;
+    height: auto;
     padding: 0 2;
     border-bottom: tall #1e1e1e;
     text-style: none;
@@ -69,6 +70,7 @@ Screen {
     height: 1fr;
     padding: 1 2;
     background: transparent;
+    overflow-y: auto;
 }
 
 .lib-row {
