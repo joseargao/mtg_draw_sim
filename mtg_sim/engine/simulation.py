@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import random
 import time
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Optional
@@ -75,7 +74,6 @@ class Condition:
     count: int
     turn_deadline: int
     label: str = ""
-    id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
 
     def evaluate(self, hand_counts: dict[str, int], current_turn: int) -> bool:
         if current_turn > self.turn_deadline:
@@ -97,7 +95,7 @@ class Condition:
         return self.display_label
 
     def __repr__(self) -> str:
-        return f"Condition({self._auto_label()!r}, id={self.id!r})"
+        return f"Condition({self._auto_label()!r})"
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +132,6 @@ class Simulation:
     success_rule: SuccessRule = SuccessRule.ALL
     run_count: int = 10_000
     turn_limit: Optional[int] = None
-    id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
 
     # Results
     total_runs: int = 0
@@ -199,7 +196,7 @@ class Simulation:
 
     def __str__(self) -> str:
         return (
-            f"[{self.id}] {self.name} ({self.success_rule.value}) "
+            f"{self.name} ({self.success_rule.value}) "
             f"| {self.success_rate_pct} over {self.total_runs} runs"
         )
 

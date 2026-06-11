@@ -4,7 +4,6 @@ mtg_sim/ui/modals.py — Modal dialogs for condition and simulation CRUD.
 
 from __future__ import annotations
 
-import uuid
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
@@ -126,7 +125,6 @@ class ConditionModal(ModalScreen[Condition | None]):
             count=count,
             turn_deadline=turn,
             label=label,
-            id=ex.id if ex else uuid.uuid4().hex[:8],
         ))
 
 
@@ -154,6 +152,7 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
         self._selected_indices: list[int] = (
             list(existing.condition_indices) if existing else []
         )
+        self._remove_btn_map: dict[int, int] = {}  # button id() -> condition index
 
     def compose(self) -> ComposeResult:
         ex = self._existing
@@ -232,6 +231,7 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
         ]
 
     def _rebuild_condition_list(self) -> None:
+        self._remove_btn_map.clear()
         container = self.query_one("#condition-list", ScrollableContainer)
         container.remove_children()
         if not self._selected_indices:
@@ -241,8 +241,11 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
                 label = self._condition_label(idx)
                 row = Horizontal(classes="modal-condition-row")
                 container.mount(row)
-                row.mount(Static(f" {label}", markup=False, classes="modal-condition-tag"))
-                row.mount(Button("x", classes="modal-condition-remove", id=f"rm-{idx}"))
+                lbl = Static(f" {label}", markup=False, classes="modal-condition-tag")
+                btn = Button("x", classes="modal-condition-remove")
+                self._remove_btn_map[id(btn)] = idx
+                row.mount(lbl)
+                row.mount(btn)
         # Refresh picker
         self.query_one("#select-condition", Select).set_options(self._condition_options())
 
@@ -254,14 +257,11 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
             self._save()
         elif bid == "btn-add-condition":
             self._add_condition()
-        elif bid.startswith("rm-"):
-            try:
-                idx = int(bid[3:])
-                if idx in self._selected_indices:
-                    self._selected_indices.remove(idx)
-                self._rebuild_condition_list()
-            except ValueError:
-                pass
+        elif id(event.button) in self._remove_btn_map:
+            idx = self._remove_btn_map[id(event.button)]
+            if idx in self._selected_indices:
+                self._selected_indices.remove(idx)
+            self._rebuild_condition_list()
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -312,6 +312,5 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
             success_rule=rule,
             run_count=runs,
             turn_limit=turn_limit,
-            id=ex.id if ex else uuid.uuid4().hex[:8],
         )
         self.dismiss((sim, list(self._selected_indices)))

@@ -164,10 +164,7 @@ class TestCondition:
         c = Condition("Forest", Comparator.GTE, 2, 2, label="Ramp Online")
         assert c.display_label == "Ramp Online"
 
-    def test_unique_ids(self):
-        c1 = Condition("Forest", Comparator.GTE, 2, 2)
-        c2 = Condition("Forest", Comparator.GTE, 2, 2)
-        assert c1.id != c2.id
+
 
 
 # ===========================================================================
