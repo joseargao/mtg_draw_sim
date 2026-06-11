@@ -27,27 +27,20 @@ def _css_path() -> Path:
 
 
 class MtgSimApp(App):
-    """MTG Draw Simulator — terminal UI."""
-
     CSS_PATH = _css_path()
 
     BINDINGS = [
-        # Tab handling: override Textual's built-in focus_next/focus_previous
-        # with our own pane-level cycling so Tab skips inner widgets.
-        Binding("tab",       "focus_next_pane",  "next pane",   show=False, priority=True),
-        Binding("shift+tab", "focus_prev_pane",  "prev pane",   show=False, priority=True),
-        Binding("up",        "select_prev",      "prev item",   show=False),
-        Binding("down",      "select_next",      "next item",   show=False),
-        Binding("enter",     "edit_selected",    "edit",        show=False),
-        # Game actions
+        Binding("tab",       "focus_next_pane", "next pane",  show=False, priority=True),
+        Binding("shift+tab", "focus_prev_pane", "prev pane",  show=False, priority=True),
+        Binding("up",        "select_prev",     "prev item",  show=False),
+        Binding("down",      "select_next",     "next item",  show=False),
+        Binding("enter",     "edit_selected",   "edit",       show=False),
         Binding("n", "next_turn",   "next turn"),
         Binding("r", "reset_game",  "reset"),
         Binding("s", "run_sims",    "run sims"),
-        # CRUD
         Binding("a", "add_condition",   "add condition"),
         Binding("A", "add_simulation",  "add simulation"),
         Binding("d", "delete_selected", "delete"),
-        # App
         Binding("q", "quit", "quit"),
     ]
 
@@ -63,23 +56,21 @@ class MtgSimApp(App):
     # ------------------------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        state = self._state
-        deck_label = state.deck.source if state.deck else "no deck"
+        deck_label = self._state.deck.source if self._state.deck else "no deck"
         yield Static(f" mtg_sim  [dim]│[/dim]  {deck_label}", id="title-bar")
-
         with Grid(id="main-grid"):
-            yield LibraryPane(state,  id="pane-library",      classes="pane")
-            yield HandPane(state,     id="pane-hand",         classes="pane")
-            yield ConditionsPane(state, id="pane-conditions", classes="pane")
-            yield SimulationsPane(state, id="pane-simulations", classes="pane")
-
+            yield LibraryPane(self._state,  id="pane-library",      classes="pane")
+            yield HandPane(self._state,     id="pane-hand",         classes="pane")
+            yield ConditionsPane(self._state, id="pane-conditions", classes="pane")
+            yield SimulationsPane(self._state, id="pane-simulations", classes="pane")
         yield Static(self._build_status(), id="status-bar")
 
     def _build_status(self) -> str:
         hints = [
             ("[n]", "next turn"), ("[r]", "reset"), ("[s]", "run sims"),
             ("[a]", "add cond"), ("[A]", "add sim"), ("[d]", "delete"),
-            ("[tab]", "focus"), ("[q]", "quit"),
+            ("[↑↓]", "select"), ("[enter]", "edit"), ("[tab]", "focus"),
+            ("[q]", "quit"),
         ]
         return "  ".join(f"[dim]{k}[/dim] {v}" for k, v in hints)
 
@@ -87,10 +78,7 @@ class MtgSimApp(App):
         self._focus_pane(0)
 
     # ------------------------------------------------------------------
-    # Pane focus — priority=True on the bindings means these fire before
-    # Textual's built-in tab/shift-tab focus_next / focus_previous actions,
-    # so a single Tab always moves to the next pane rather than cycling
-    # through inner widgets first.
+    # Pane focus
     # ------------------------------------------------------------------
 
     def _focus_pane(self, index: int) -> None:
@@ -104,10 +92,8 @@ class MtgSimApp(App):
         self._focus_pane(self._pane_index - 1)
 
     def on_focus(self, event) -> None:
-        """Keep _pane_index in sync if focus moves via mouse click."""
-        widget_id = event.widget.id
-        if widget_id in self.PANE_IDS:
-            self._pane_index = self.PANE_IDS.index(widget_id)
+        if event.widget.id in self.PANE_IDS:
+            self._pane_index = self.PANE_IDS.index(event.widget.id)
 
     def action_select_next(self) -> None:
         pane_id = self.PANE_IDS[self._pane_index]
@@ -155,7 +141,7 @@ class MtgSimApp(App):
         self.notify("Simulations complete.", severity="information")
 
     # ------------------------------------------------------------------
-    # CRUD actions
+    # CRUD
     # ------------------------------------------------------------------
 
     def action_add_condition(self) -> None:
@@ -166,17 +152,17 @@ class MtgSimApp(App):
                 return
             self._state.add_condition(cond)
             self._refresh_conditions()
-            self.notify(f"Condition added: {cond.display_label}")
 
         self.push_screen(ConditionModal(card_names=card_names), on_result)
 
     def action_add_simulation(self) -> None:
-        def on_result(sim: Simulation | None) -> None:
-            if sim is None:
+        def on_result(result) -> None:
+            if result is None:
                 return
+            sim, indices = result
+            sim.condition_indices = indices
             self._state.add_simulation(sim)
             self._refresh_simulations()
-            self.notify(f"Simulation added: {sim.name}")
 
         self.push_screen(
             SimulationModal(conditions=self._state.conditions),
@@ -185,68 +171,74 @@ class MtgSimApp(App):
 
     def action_edit_selected(self) -> None:
         pane_id = self.PANE_IDS[self._pane_index]
+
         if pane_id == "pane-conditions":
             pane = self.query_one("#pane-conditions", ConditionsPane)
-            cond = pane.selected_condition
-            if cond is None:
-                self.notify("Select a condition first (up/down).", severity="warning")
+            idx = pane.selected_index
+            if idx < 0:
+                self.notify("Select a condition first (↑↓).", severity="warning")
                 return
+            existing = self._state.conditions[idx]
             card_names = sorted(self._state.deck.counts.keys()) if self._state.deck else []
 
             def on_result(updated: Condition | None) -> None:
                 if updated is None:
                     return
-                idx = next(i for i, c in enumerate(self._state.conditions) if c.id == updated.id)
-                self._state.conditions[idx] = updated
+                self._state.replace_condition(idx, updated)
                 self._refresh_conditions()
                 self._refresh_simulations()
-                self.notify(f"Condition updated: {updated.display_label}")
 
-            self.push_screen(ConditionModal(card_names=card_names, existing=cond), on_result)
+            self.push_screen(ConditionModal(card_names=card_names, existing=existing), on_result)
 
         elif pane_id == "pane-simulations":
             pane = self.query_one("#pane-simulations", SimulationsPane)
-            sim = pane.selected_simulation
-            if sim is None:
-                self.notify("Select a simulation first (up/down).", severity="warning")
+            idx = pane.selected_index
+            if idx < 0:
+                self.notify("Select a simulation first (↑↓).", severity="warning")
                 return
+            existing = self._state.simulations[idx]
 
-            def on_result(updated: Simulation | None) -> None:
-                if updated is None:
+            def on_result(result) -> None:
+                if result is None:
                     return
-                idx = next(i for i, s in enumerate(self._state.simulations) if s.id == updated.id)
-                self._state.simulations[idx] = updated
+                sim, indices = result
+                sim.condition_indices = indices
+                self._state.replace_simulation(idx, sim)
                 self._refresh_simulations()
-                self.notify(f"Simulation updated: {updated.name}")
 
             self.push_screen(
-                SimulationModal(conditions=self._state.conditions, existing=sim),
+                SimulationModal(conditions=self._state.conditions, existing=existing),
                 on_result,
             )
 
     def action_delete_selected(self) -> None:
         pane_id = self.PANE_IDS[self._pane_index]
+
         if pane_id == "pane-conditions":
             pane = self.query_one("#pane-conditions", ConditionsPane)
-            cond = pane.selected_condition
-            if cond is None:
+            idx = pane.selected_index
+            if idx < 0:
                 self.notify("Select a condition first (↑↓).", severity="warning")
                 return
-            self._state.remove_condition(cond.id)
+            name = self._state.conditions[idx].display_label
+            self._state.remove_condition(idx)
             pane.selected_index = -1
             self._refresh_conditions()
             self._refresh_simulations()
-            self.notify(f"Deleted: {cond.display_label}")
+            self.notify(f"Deleted: {name}")
+
         elif pane_id == "pane-simulations":
             pane = self.query_one("#pane-simulations", SimulationsPane)
-            sim = pane.selected_simulation
-            if sim is None:
+            idx = pane.selected_index
+            if idx < 0:
                 self.notify("Select a simulation first (↑↓).", severity="warning")
                 return
-            self._state.remove_simulation(sim.id)
+            name = self._state.simulations[idx].name
+            self._state.remove_simulation(idx)
             pane.selected_index = -1
             self._refresh_simulations()
-            self.notify(f"Deleted: {sim.name}")
+            self.notify(f"Deleted: {name}")
+
         else:
             self.notify("Focus conditions or simulations pane to delete.", severity="warning")
 
@@ -303,9 +295,9 @@ Deck
     state.add_condition(c2)
     state.add_condition(c3)
 
-    s1 = Simulation("Aggro opener", conditions=[c1, c2],
+    s1 = Simulation("Aggro opener", condition_indices=[0, 1],
                     success_rule=SuccessRule.ANY, run_count=10_000)
-    s2 = Simulation("Full setup",  conditions=[c1, c3],
+    s2 = Simulation("Full setup",  condition_indices=[0, 2],
                     success_rule=SuccessRule.ALL, run_count=10_000)
     state.add_simulation(s1)
     state.add_simulation(s2)

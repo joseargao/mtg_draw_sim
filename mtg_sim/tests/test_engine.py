@@ -200,13 +200,13 @@ class TestSimulation:
     def test_effective_turn_limit_from_conditions(self):
         c1 = Condition("Mountain", Comparator.GTE, 1, turn_deadline=2)
         c2 = Condition("Lightning Bolt", Comparator.GT, 0, turn_deadline=4)
-        sim = Simulation("Test", conditions=[c1, c2])
-        assert sim.effective_turn_limit == 4
+        sim = Simulation("Test", condition_indices=[0, 1])
+        assert sim.effective_turn_limit([c1, c2]) == 4
 
     def test_explicit_turn_limit_overrides(self):
         c = Condition("Mountain", Comparator.GTE, 1, turn_deadline=2)
-        sim = Simulation("Test", conditions=[c], turn_limit=6)
-        assert sim.effective_turn_limit == 6
+        sim = Simulation("Test", condition_indices=[0], turn_limit=6)
+        assert sim.effective_turn_limit([c]) == 6
 
     def test_success_rate_none_before_run(self):
         sim = Simulation("Test")
@@ -215,9 +215,9 @@ class TestSimulation:
 
     def test_run_completes(self, gs):
         c = Condition("Mountain", Comparator.GTE, 1, turn_deadline=4)
-        sim = Simulation("Mountain Test", conditions=[c], run_count=100)
+        sim = Simulation("Mountain Test", condition_indices=[0], run_count=100)
         runner = SimulationRunner(gs, cards_per_turn=1)
-        runner.run(sim)
+        runner.run(sim, [c])
         assert sim.status == "COMPLETE"
         assert sim.total_runs == 100
         assert sim.success_rate is not None
@@ -225,64 +225,64 @@ class TestSimulation:
     def test_always_true_condition(self, gs):
         # Mountain >= 0 by turn 4: always satisfied
         c = Condition("Mountain", Comparator.GTE, 0, turn_deadline=4)
-        sim = Simulation("Always", conditions=[c], run_count=200, success_rule=SuccessRule.ALL)
+        sim = Simulation("Always", condition_indices=[0], run_count=200, success_rule=SuccessRule.ALL)
         runner = SimulationRunner(gs, cards_per_turn=1)
-        runner.run(sim)
+        runner.run(sim, [c])
         assert sim.success_rate == pytest.approx(1.0)
 
     def test_impossible_condition(self, gs):
         # Need 99 Lightning Bolts by turn 1 — impossible
         c = Condition("Lightning Bolt", Comparator.GTE, 99, turn_deadline=1)
-        sim = Simulation("Impossible", conditions=[c], run_count=200)
+        sim = Simulation("Impossible", condition_indices=[0], run_count=200)
         runner = SimulationRunner(gs, cards_per_turn=1)
-        runner.run(sim)
+        runner.run(sim, [c])
         assert sim.success_rate == pytest.approx(0.0)
 
     def test_any_rule_succeeds_if_one_met(self, gs):
         c_easy = Condition("Mountain", Comparator.GTE, 0, turn_deadline=4)     # always true
         c_hard = Condition("Lightning Bolt", Comparator.GTE, 99, turn_deadline=1)  # always false
-        sim = Simulation("OR Test", conditions=[c_easy, c_hard],
+        sim = Simulation("OR Test", condition_indices=[0, 1],
                          success_rule=SuccessRule.ANY, run_count=100)
         runner = SimulationRunner(gs, cards_per_turn=1)
-        runner.run(sim)
+        runner.run(sim, [c_easy, c_hard])
         assert sim.success_rate == pytest.approx(1.0)
 
     def test_all_rule_fails_if_one_missed(self, gs):
         c_easy = Condition("Mountain", Comparator.GTE, 0, turn_deadline=4)
         c_hard = Condition("Lightning Bolt", Comparator.GTE, 99, turn_deadline=1)
-        sim = Simulation("AND Test", conditions=[c_easy, c_hard],
+        sim = Simulation("AND Test", condition_indices=[0, 1],
                          success_rule=SuccessRule.ALL, run_count=100)
         runner = SimulationRunner(gs, cards_per_turn=1)
-        runner.run(sim)
+        runner.run(sim, [c_easy, c_hard])
         assert sim.success_rate == pytest.approx(0.0)
 
     def test_progress_callback(self, gs):
         c = Condition("Mountain", Comparator.GTE, 0, turn_deadline=4)
-        sim = Simulation("Progress", conditions=[c], run_count=50)
+        sim = Simulation("Progress", condition_indices=[0], run_count=50)
         runner = SimulationRunner(gs)
         calls = []
-        runner.run(sim, progress_cb=lambda done, total: calls.append((done, total)))
+        runner.run(sim, [c], progress_cb=lambda done, total: calls.append((done, total)))
         assert len(calls) == 50
         assert calls[-1] == (50, 50)
 
     def test_per_condition_hit_rates(self, gs):
         c = Condition("Mountain", Comparator.GTE, 0, turn_deadline=4)
-        sim = Simulation("Hit Rate", conditions=[c], run_count=100)
+        sim = Simulation("Hit Rate", condition_indices=[0], run_count=100)
         runner = SimulationRunner(gs)
-        runner.run(sim)
-        assert sim.condition_hit_rate(c.id) == pytest.approx(1.0)
+        runner.run(sim, [c])
+        assert sim.condition_hit_rate(0) == pytest.approx(1.0)
 
     def test_seeded_run_reproducible(self, deck):
         import random
         c = Condition("Mountain", Comparator.GTE, 1, turn_deadline=3)
 
         gs1 = GameState(deck=deck, rng=random.Random(7))
-        sim1 = Simulation("Seed Test", conditions=[c], run_count=500)
-        SimulationRunner(gs1, seed=7).run(sim1)
+        sim1 = Simulation("Seed Test", condition_indices=[0], run_count=500)
+        SimulationRunner(gs1, seed=7).run(sim1, [c])
 
         gs2 = GameState(deck=deck, rng=random.Random(7))
-        sim2 = Simulation("Seed Test", conditions=[c], run_count=500)
-        SimulationRunner(gs2, seed=7).run(sim2)
+        sim2 = Simulation("Seed Test", condition_indices=[0], run_count=500)
+        SimulationRunner(gs2, seed=7).run(sim2, [c])
 
         assert sim1.success_count == sim2.success_count
 
@@ -335,23 +335,25 @@ class TestAppState:
     def test_add_remove_condition(self, state):
         c = Condition("Mountain", Comparator.GTE, 1, 2)
         state.add_condition(c)
-        assert c in state.conditions
-        state.remove_condition(c.id)
+        idx = len(state.conditions) - 1
+        assert state.conditions[idx] is c
+        state.remove_condition(idx)
         assert c not in state.conditions
 
     def test_remove_condition_cascades(self, state):
         c = Condition("Mountain", Comparator.GTE, 1, 2)
         state.add_condition(c)
-        sim = Simulation("S", conditions=[c])
+        cond_idx = len(state.conditions) - 1
+        sim = Simulation("S", condition_indices=[cond_idx])
         state.add_simulation(sim)
-        state.remove_condition(c.id)
-        assert c not in state.simulations_using_condition(c.id)[0].conditions \
-            if state.simulations_using_condition(c.id) else True
+        state.remove_condition(cond_idx)
+        assert cond_idx not in sim.condition_indices
 
     def test_run_simulation(self, state):
         c = Condition("Mountain", Comparator.GTE, 1, 4)
-        sim = Simulation("Test", conditions=[c], run_count=200)
         state.add_condition(c)
+        cond_idx = len(state.conditions) - 1
+        sim = Simulation("Test", condition_indices=[cond_idx], run_count=200)
         state.add_simulation(sim)
         state.run_simulation(sim)
         assert sim.status == "COMPLETE"
@@ -359,9 +361,10 @@ class TestAppState:
     def test_simulations_using_condition(self, state):
         c = Condition("Mountain", Comparator.GTE, 1, 2)
         state.add_condition(c)
-        sim = Simulation("S", conditions=[c])
+        cond_idx = len(state.conditions) - 1
+        sim = Simulation("S", condition_indices=[cond_idx])
         state.add_simulation(sim)
-        assert sim in state.simulations_using_condition(c.id)
+        assert cond_idx in sim.condition_indices
 
     def test_advance_turn(self, state):
         turn_before = state.game_state.turn
