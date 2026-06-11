@@ -67,7 +67,7 @@ class MtgSimApp(App):
 
     def _build_status(self) -> str:
         hints = [
-            ("n", "next turn"), ("r", "reset"), ("s", "run sims"),
+            ("n", "next turn"), ("r", "deal hand"), ("s", "run sims"),
             ("a", "add cond"), ("A", "add sim"), ("d", "delete"),
             ("↑↓", "select"), ("enter", "edit"), ("tab", "focus"),
             ("q", "quit"),

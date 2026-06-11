@@ -33,7 +33,6 @@ class AppState:
             hand_size=self.config.hand_size,
         )
         self.game_state.reset()
-        self.game_state.deal_opening_hand()
 
     # ------------------------------------------------------------------
     # Condition CRUD

@@ -75,13 +75,11 @@ class LibraryPane(Widget):
                 lines.append(f"{name:<38} {qty_str}")
 
         total_deck = sum(deck_counts.values())
-        lines.append(f"[dim]{'─' * 44}[/dim]")
-        lines.append(f"[yellow]TOTAL  {total_deck} → {gs.library_size}[/yellow]")
 
         content.update("\n".join(lines))
         total = sum(self._state.deck.counts.values()) if self._state.deck else 0
         self.query_one("#lib-title", Label).update(
-            f"DECK  [dim]{total}x  —  turn {gs.turn}[/dim]"
+            f"DECK  [dim]{gs.library_size}/{total} cards  —  turn {gs.turn}[/dim]"
         )
 
         if highlight_names:
