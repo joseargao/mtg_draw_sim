@@ -1,5 +1,6 @@
 """
-mtg_sim/ui/modals.py — Modal dialogs for condition and simulation CRUD.
+mtg_sim/ui/modals.py — Modal dialogs for condition and simulation CRUD,
+plus the F1 help overlay.
 """
 
 from __future__ import annotations
@@ -8,10 +9,62 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Button, Input, Label, Select, Static
+from textual.widgets import Button, Checkbox, Input, Label, Select, Static
 from textual.containers import Horizontal, Vertical, ScrollableContainer
 
 from ..engine.simulation import Comparator, Condition, SuccessRule, Simulation
+
+
+# ---------------------------------------------------------------------------
+# HelpModal — F1 key binding reference
+# ---------------------------------------------------------------------------
+
+class HelpModal(ModalScreen[None]):
+    """Full keybinding reference. Dismiss with any key or click."""
+
+    BINDINGS = [
+        ("escape", "dismiss_help", "Close"),
+        ("f1",     "dismiss_help", "Close"),
+        ("q",      "dismiss_help", "Close"),
+        ("space",  "dismiss_help", "Close"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="modal-container help-container"):
+            yield Static("Keybindings", classes="modal-title")
+            yield Static(HELP_TEXT, classes="help-body")
+            yield Static(
+                "[dim]Press [/dim][cyan]Esc[/cyan][dim], [/dim][cyan]F1[/cyan][dim],"
+                " [/dim][cyan]Space[/cyan][dim], or [/dim][cyan]q[/cyan][dim] to close[/dim]",
+                classes="help-footer",
+            )
+
+    def action_dismiss_help(self) -> None:
+        self.dismiss(None)
+
+
+HELP_TEXT = """\
+[cyan]Navigation[/cyan]
+  [cyan]Tab[/cyan] / [cyan]Shift+Tab[/cyan]   Switch between panes
+  [cyan]↑[/cyan] / [cyan]↓[/cyan]            Select item within a pane
+
+[cyan]Game[/cyan]
+  [cyan]r[/cyan]                Deal opening hand (reset)
+  [cyan]n[/cyan]                Draw next turn
+
+[cyan]Simulations[/cyan]
+  [cyan]s[/cyan]                Run all simulations
+
+[cyan]Editing[/cyan]
+  [cyan]a[/cyan]                Add condition
+  [cyan]A[/cyan]                Add simulation
+  [cyan]Enter[/cyan]            Edit selected condition or simulation
+  [cyan]d[/cyan]                Delete selected condition or simulation
+
+[cyan]App[/cyan]
+  [cyan]F1[/cyan] / [cyan]Esc[/cyan]         Close this help
+  [cyan]q[/cyan]                Quit\
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -130,9 +183,6 @@ class ConditionModal(ModalScreen[Condition | None]):
 
 # ---------------------------------------------------------------------------
 # SimulationModal — returns (Simulation, list[int]) or None
-#
-# The second element of the tuple is the list of condition INDICES the user
-# selected. The app stores these on sim.condition_indices.
 # ---------------------------------------------------------------------------
 
 class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
@@ -148,11 +198,9 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
         super().__init__(**kwargs)
         self._all_conditions = conditions
         self._existing = existing
-        # Work with indices directly
         self._selected_indices: list[int] = (
             list(existing.condition_indices) if existing else []
         )
-        self._remove_btn_map: dict[int, int] = {}  # button id() -> condition index
 
     def compose(self) -> ComposeResult:
         ex = self._existing
@@ -191,20 +239,24 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
             )
 
             yield Label("Conditions", classes="modal-label")
-            with Horizontal(classes="modal-picker-row"):
-                yield Select(
-                    options=self._condition_options(),
-                    prompt="Pick a condition to add…",
-                    allow_blank=True,
-                    id="select-condition",
-                    classes="modal-picker-select",
-                )
-                yield Button("Add", id="btn-add-condition", classes="modal-picker-btn")
-
-            yield ScrollableContainer(
-                id="condition-list",
-                classes="modal-condition-list",
-            )
+            # Scrollable checklist — fixed height regardless of condition count
+            with Vertical(classes="modal-checklist", id="checklist"):
+                if not self._all_conditions:
+                    yield Static(
+                        "[dim]No conditions defined yet.[/dim]",
+                        classes="modal-no-conditions",
+                    )
+                else:
+                    for i, cond in enumerate(self._all_conditions):
+                        checked = i in self._selected_indices
+                        label = f"{i+1}. {cond.display_label}"
+                        yield Checkbox(
+                            label,
+                            value=checked,
+                            id=f"chk-{i}",
+                            classes="modal-checkbox",
+                            compact=True,
+                        )
 
             yield Static("", id="modal-error", classes="modal-error")
 
@@ -212,42 +264,18 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
                 yield Button("Cancel", id="btn-cancel")
                 yield Button("Save", id="btn-save", variant="primary")
 
-    def on_mount(self) -> None:
-        self._rebuild_condition_list()
-
-    def _condition_label(self, idx: int) -> str:
-        if 0 <= idx < len(self._all_conditions):
-            c = self._all_conditions[idx]
-            label = c.label or f"{c.card_name} {c.comparator} {c.count}"
-            return f"[C{idx+1}] {label}  (by turn {c.turn_deadline})"
-        return f"[C{idx+1}] (missing)"
-
-    def _condition_options(self) -> list[tuple[Text, int]]:
-        """Dropdown options — indices not yet selected."""
-        return [
-            (Text(self._condition_label(i), no_wrap=True), i)
-            for i in range(len(self._all_conditions))
-            if i not in self._selected_indices
-        ]
-
-    def _rebuild_condition_list(self) -> None:
-        self._remove_btn_map.clear()
-        container = self.query_one("#condition-list", ScrollableContainer)
-        container.remove_children()
-        if not self._selected_indices:
-            container.mount(Static("No conditions added yet.", classes="modal-no-conditions"))
+    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
+        # Extract index from checkbox ID "chk-{i}"
+        chk_id = event.checkbox.id or ""
+        if not chk_id.startswith("chk-"):
+            return
+        idx = int(chk_id[4:])
+        if event.value:
+            if idx not in self._selected_indices:
+                self._selected_indices.append(idx)
         else:
-            for idx in self._selected_indices:
-                label = self._condition_label(idx)
-                row = Horizontal(classes="modal-condition-row")
-                container.mount(row)
-                lbl = Static(f" {label}", markup=False, classes="modal-condition-tag")
-                btn = Button("x", classes="modal-condition-remove")
-                self._remove_btn_map[id(btn)] = idx
-                row.mount(lbl)
-                row.mount(btn)
-        # Refresh picker
-        self.query_one("#select-condition", Select).set_options(self._condition_options())
+            if idx in self._selected_indices:
+                self._selected_indices.remove(idx)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id or ""
@@ -255,32 +283,16 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
             self.dismiss(None)
         elif bid == "btn-save":
             self._save()
-        elif bid == "btn-add-condition":
-            self._add_condition()
-        elif id(event.button) in self._remove_btn_map:
-            idx = self._remove_btn_map[id(event.button)]
-            if idx in self._selected_indices:
-                self._selected_indices.remove(idx)
-            self._rebuild_condition_list()
 
     def action_cancel(self) -> None:
         self.dismiss(None)
-
-    def _add_condition(self) -> None:
-        picker = self.query_one("#select-condition", Select)
-        val = picker.value
-        if val is Select.NULL:
-            return
-        idx = int(val)
-        if idx not in self._selected_indices:
-            self._selected_indices.append(idx)
-        self._rebuild_condition_list()
 
     def _show_error(self, msg: str) -> None:
         self.query_one("#modal-error", Static).update(f"[red]{msg}[/red]")
 
     def _save(self) -> None:
         label = self.query_one("#input-name", Input).value.strip()
+
         try:
             runs = int(self.query_one("#input-runs", Input).value.strip())
         except ValueError:
@@ -303,11 +315,10 @@ class SimulationModal(ModalScreen[tuple[Simulation, list[int]] | None]):
         if rule is Select.NULL:
             rule = SuccessRule.ALL
 
-        ex = self._existing
         sim = Simulation(
             label=label,
             success_rule=rule,
             run_count=runs,
             turn_limit=turn_limit,
         )
-        self.dismiss((sim, list(self._selected_indices)))
+        self.dismiss((sim, sorted(self._selected_indices)))

@@ -2,8 +2,6 @@
 
 A terminal-based deck draw simulator for Magic: The Gathering. Import any MTG Arena decklist, define draw conditions, run thousands of randomized simulations, and get statistical results on how consistently your deck hits its key draws.
 
-> **Status: Work in progress.** The simulation engine (Stage 1) and TUI scaffold with working CRUD (Stage 2) are complete. Live interactive mode, batch progress display, and config UI are under active development.
-
 ---
 
 ## What it does
@@ -15,21 +13,22 @@ You define **conditions** like:
 - `Goblin Guide > 0 by turn 1` — do I have at least one in my opening hand?
 - `Forest >= 2 by turn 3` — do I have enough lands to ramp?
 
-You group conditions into **simulations** with AND/OR logic, run them tens of thousands of times, and get back success rates — per condition and overall.
+You group conditions into **simulations** with AND/OR logic, run them tens of thousands of times, and get back success rates per condition and overall.
 
 ---
 
 ## Features
 
 - Import decklists directly from MTG Arena export format
-- Terminal UI with 4 panes: library, hand, conditions, simulations
+- Terminal UI with 4 panes: deck, hand, conditions, simulations
 - Define reusable draw conditions via searchable card name dropdown
-- Group conditions into named simulations with ANY (OR) / ALL (AND) success logic
-- Assign multiple conditions to a simulation via dropdown + Add button
+- Group conditions into named simulations with ALL or ANY success logic
+- Assign conditions to simulations via scrollable checklist
 - Run thousands of randomized independent games per simulation
 - Per-condition hit rates alongside overall simulation success rate
+- Live deck and hand updates as you draw turns interactively
 - Seeded RNG for fully reproducible results
-- INI-based configuration for default hand size, cards per turn, run counts, and more
+- INI-based configuration for hand size, cards per turn, run counts, and more
 - Builds to a standalone executable via PyInstaller (Linux and Windows)
 
 ---
@@ -53,10 +52,10 @@ mtg_draw_sim/
     ├── ui/
     │   ├── app.py           # Main Textual application
     │   ├── app.tcss         # TUI stylesheet
-    │   ├── widgets.py       # Pane widgets (library, hand, conditions, sims)
-    │   └── modals.py        # Add/edit dialogs
+    │   ├── widgets.py       # Pane widgets
+    │   └── modals.py        # Add/edit dialogs and F1 help overlay
     └── tests/
-        └── test_engine.py   # 43 engine tests
+        └── test_engine.py   # Engine tests
 ```
 
 ---
@@ -87,20 +86,20 @@ python main.py my_deck.txt
 
 ---
 
-## Key bindings
+## Controls
 
 | Key | Action |
 |-----|--------|
-| `Tab` | Move focus to the next pane |
-| `Shift+Tab` | Move focus to the previous pane |
-| `↑` / `↓` | Navigate items within the focused pane |
+| `Tab` / `Shift+Tab` | Switch between panes |
+| `↑` / `↓` | Select item within a pane |
+| `Enter` | Edit selected condition or simulation |
+| `r` | Deal opening hand (reset) |
 | `n` | Draw next turn |
-| `r` | Reset game state |
 | `s` | Run all simulations |
 | `a` | Add condition |
 | `A` | Add simulation |
 | `d` | Delete selected condition or simulation |
-| `Escape` | Close modal dialog |
+| `F1` | Show help overlay with full keybinding reference |
 | `q` | Quit |
 
 ---
@@ -115,8 +114,6 @@ python -m pytest mtg_sim/tests/
 ---
 
 ## Building an executable
-
-The build scripts handle venv creation, dependency installation, test gating, and PyInstaller packaging automatically.
 
 **Linux / macOS:**
 ```bash
@@ -136,13 +133,13 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\build.ps1 -Clean          # remove build artifacts
 ```
 
-The build will run the test suite before packaging and abort if any tests fail.
+The build runs the test suite before packaging and aborts if any tests fail.
 
 ---
 
 ## Configuration
 
-Create a `config.ini` in the project root to set defaults:
+Create `config.ini` in the project root to set defaults:
 
 ```ini
 [deck]
@@ -162,7 +159,7 @@ seed      =         ; leave blank for random
 
 ## Decklist format
 
-MTG Arena export format is supported. Copy your deck directly from MTG Arena:
+Copy your deck directly from MTG Arena:
 
 ```
 Deck
@@ -176,17 +173,18 @@ Sideboard
 2 Pyroblast
 ```
 
-The sideboard section is ignored. Set codes like `Lightning Bolt (M11) 100` are handled automatically.
+The sideboard section is ignored. Set codes like `Lightning Bolt (M11) 100` are handled automatically. Card names in conditions are matched exactly — always use the card name dropdown rather than typing manually.
 
 ---
 
 ## Roadmap
 
 - [x] Stage 1 — Simulation engine (deck parser, game state, conditions, simulations)
-- [x] Stage 2 — Textual TUI (4-pane layout, navigation, condition/simulation CRUD)
-- [ ] Stage 3 — Interactive mode (live deck/hand updates, turn advancement)
-- [ ] Stage 4 — Edit existing conditions and simulations
-- [ ] Stage 5 — Batch runner with async progress display
-- [ ] Stage 6 — Config integration and polish
+- [x] Stage 2 — Textual TUI (4-pane layout, navigation, CRUD)
+- [x] Stage 3 — Interactive mode (live deck/hand updates, card draw flash)
+- [x] Stage 4 — Edit existing conditions and simulations
+- [x] Stage 5 — Usability polish (app name, F1 help, status bar, checklist condition picker)
+- [ ] Stage 6 — Async batch runner with progress display
+- [ ] Stage 7 — Save/load conditions and simulations between sessions
 - [ ] Future — Mulligan simulation (London mulligan)
-- [ ] Future — Mouse support
+- [ ] Future — Mouse support throughout

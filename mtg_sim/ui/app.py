@@ -16,7 +16,7 @@ from ..engine.app_state import AppState
 from ..engine.deck import Deck
 from ..engine.simulation import Comparator, Condition, Simulation, SuccessRule
 from .widgets import ConditionsPane, HandPane, LibraryPane, SimulationsPane
-from .modals import ConditionModal, SimulationModal
+from .modals import ConditionModal, SimulationModal, HelpModal
 
 
 def _css_path() -> Path:
@@ -42,6 +42,7 @@ class MtgSimApp(App):
         Binding("A", "add_simulation",  "add simulation"),
         Binding("d", "delete_selected", "delete"),
         Binding("q", "quit", "quit"),
+        Binding("f1", "show_help", "help"),
     ]
 
     PANE_IDS = ["pane-library", "pane-hand", "pane-conditions", "pane-simulations"]
@@ -57,7 +58,10 @@ class MtgSimApp(App):
 
     def compose(self) -> ComposeResult:
         deck_label = self._state.deck.source if self._state.deck else "no deck"
-        yield Static(f" mtg_sim  [dim]│[/dim]  {deck_label}", id="title-bar")
+        yield Static(
+            f"[bold cyan]Draw Simulator[/bold cyan]  [dim]│[/dim]  {deck_label}",
+            id="title-bar"
+        )
         with Grid(id="main-grid"):
             yield LibraryPane(self._state,  id="pane-library",      classes="pane")
             yield HandPane(self._state,     id="pane-hand",         classes="pane")
@@ -67,10 +71,9 @@ class MtgSimApp(App):
 
     def _build_status(self) -> str:
         hints = [
-            ("n", "next turn"), ("r", "deal hand"), ("s", "run sims"),
-            ("a", "add cond"), ("A", "add sim"), ("d", "delete"),
-            ("↑↓", "select"), ("enter", "edit"), ("tab", "focus"),
-            ("q", "quit"),
+            ("tab", "switch pane"), ("↑↓", "select item"), ("enter", "edit"),
+            ("r", "deal hand"), ("n", "next turn"), ("s", "run sims"),
+            ("q", "quit"), ("F1", "help"),
         ]
         return "  ".join(f"[cyan]{k}[/cyan] [dim]{v}[/dim]" for k, v in hints)
 
@@ -143,6 +146,9 @@ class MtgSimApp(App):
     # ------------------------------------------------------------------
     # CRUD
     # ------------------------------------------------------------------
+
+    def action_show_help(self) -> None:
+        self.push_screen(HelpModal())
 
     def action_add_condition(self) -> None:
         card_names = sorted(self._state.deck.counts.keys()) if self._state.deck else []
